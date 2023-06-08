@@ -8,6 +8,7 @@ use Illuminate\Http\Response;
 
 class CategoriesController extends Controller
 {
+
     public function index()
     {
         $categories = Categories::all();
@@ -27,64 +28,85 @@ class CategoriesController extends Controller
 
     public function show($id)
     {
-        $category = Categories::findOrFail($id);
+        $category = Categories::find($id);
 
-        $response = new Response($category, 200, [
-            'Content-Type' => 'application/xml',
-        ]);
-
-        return $response;
-    }
-
-    public function store(Request $request)
-    {
-        $validatedData = $request->validate([
-            'name' => 'required|string',
-            'parent_id' => 'nullable|exists:categories,id',
-        ]);
-
-        $category = Categories::create([
-            'name' => $validatedData['name'],
-        ]);
-
-        if ($validatedData['parent_id']) {
-            $parent = Categories::findOrFail($validatedData['parent_id']);
-            $category->appendToNode($parent)->save();
+        if (!$category) {
+            return response('<error>Category not found.</error>', 404, ['Content-Type' => 'application/xml']);
         }
 
-        $response = new Response($category, 200, [
-            'Content-Type' => 'application/xml',
-        ]);
+        $xml = new \SimpleXMLElement('<category></category>');
+        $xml->addChild('id', $category->id);
+        $xml->addChild('name', $category->name);
+        $xml->addChild('lft', $category->lft);
+        $xml->addChild('rgt', $category->rgt);
+        $xml->addChild('created_at', $category->created_at);
+        $xml->addChild('updated_at', $category->updated_at);
 
-        return $response;
+        return response($xml->asXML(), 200, ['Content-Type' => 'application/xml']);
+    }
+    public function store(Request $request)
+    {
+
+        $xmlPayload = $request->getContent();
+        $obj = simplexml_load_string($xmlPayload);
+
+        $category = new Categories();
+
+        $category->name = $obj->name;;
+        $category->lft = $obj->lft;
+        $category->rgt = $obj->rgt;
+        $category->save();
+
+        $xml = new \SimpleXMLElement('<category></category>');
+        $xml->addChild('id', $category->id);
+        $xml->addChild('name', $category->name);
+        $xml->addChild('lft', $category->lft);
+        $xml->addChild('rgt', $category->rgt);
+        $xml->addChild('created_at', $category->created_at);
+        $xml->addChild('updated_at', $category->updated_at);
+
+        return response($xml->asXML(), 201, ['Content-Type' => 'application/xml']);
     }
 
     public function update(Request $request, $id)
     {
-        $category = Categories::findOrFail($id);
+        $xmlPayload = $request->getContent();
+        $obj = simplexml_load_string($xmlPayload);
 
-        $validatedData = $request->validate([
-            'name' => 'required|string',
+        $category = Categories::find($id);
+
+        if (!$category) {
+            return response('<error>Category not found.</error>', 404, ['Content-Type' => 'application/xml']);
+        }
+
+        $request->validate([
+            'name' => 'required',
         ]);
 
-        $category->update([
-            'name' => $validatedData['name'],
-        ]);
+        $category->name = $obj->name;
+        $category->save();
 
-        $response = new Response(['message' => 'Category updated successfully'], 200, [
-            'Content-Type' => 'application/xml',
-        ]);
-        return $response;
+        $xml = new \SimpleXMLElement('<category></category>');
+        $xml->addChild('id', $category->id);
+        $xml->addChild('name', $category->name);
+        $xml->addChild('lft', $category->lft);
+        $xml->addChild('rgt', $category->rgt);
+        $xml->addChild('created_at', $category->created_at);
+        $xml->addChild('updated_at', $category->updated_at);
+
+        return response($xml->asXML(), 200, ['Content-Type' => 'application/xml']);
     }
 
     public function destroy($id)
     {
-        $category = Categories::findOrFail($id);
-        $category->delete();
-        $response = new Response(['message' => 'Category deleted successfully'], 200, [
-            'Content-Type' => 'application/xml',
-        ]);
+        $category = Categories::find($id);
 
-        return $response;
+        if (!$category) {
+            return response('<error>Category not found.</error>', 404, ['Content-Type' => 'application/xml']);
+        }
+
+        $category->delete();
+
+        return response('<message>Category deleted successfully.</message>', 200, ['Content-Type' => 'application/xml']);
     }
 }
